@@ -31,6 +31,8 @@ const keyChars = "23456789ACDEFGHJKLMNPRSTUVWXYZ"
 const keyLength = 4
 
 
+
+
 function doTransliterate(filename) {
   let name = filename.split(".")
   const ext = "." + name.splice(-1).join(".")
@@ -576,17 +578,29 @@ app.use(router.routes())
 app.use(router.allowedMethods())
 
 
-fs.rm('uploads', {recursive: true}, (err) => {
-  if (err) throw err
-  mkdirp('uploads').then (() => {
-    // app.listen(port)
-    const fn = app.callback()
-    const server = http.createServer(fn)
-    server.on('checkContinue', (req, res) => {
-      console.log("check continue!")
-      fn(req, res)
+// First check if the uploads directory exists
+fs.access('uploads', (accessErr) => {
+  const setupServer = () => {
+    mkdirp('uploads').then(() => {
+      const fn = app.callback()
+      const server = http.createServer(fn)
+      server.on('checkContinue', (req, res) => {
+        console.log("check continue!")
+        fn(req, res)
+      })
+      server.listen(port)
+      console.log('server is listening on port ' + port)
     })
-    server.listen(port)
-    console.log('server is listening on port ' + port)
-  })
+  }
+
+  if (accessErr) {
+    // Directory doesn't exist, just create it
+    setupServer()
+  } else {
+    // Directory exists, remove it first then recreate
+    fs.rm('uploads', { recursive: true }, (err) => {
+      if (err) throw err
+      setupServer()
+    })
+  }
 })
